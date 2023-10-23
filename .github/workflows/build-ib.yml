@@ -22,4 +22,4 @@ jobs:
     - name: Build the Docker image
       run: docker build . --file Dockerfile --tag  ${{ secrets.DOCKER_HUB_USERNAME }}/webapp:latest
     - name: Push image
-      run: docker push ${{ secrets.DOCKER_HUB_USERNAME }}/webap:latest
+      run: docker push ${{ secrets.DOCKER_HUB_USERNAME }}/webapp:latest
