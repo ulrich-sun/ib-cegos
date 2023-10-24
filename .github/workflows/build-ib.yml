@@ -26,6 +26,4 @@ jobs:
         with:
           namespace: default
           manifests: |
-           # kubernetes/deployment.yaml
-           # kubernetes/ingress.yaml
             simple_pod.yml
