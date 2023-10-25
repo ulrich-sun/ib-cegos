@@ -26,4 +26,4 @@ jobs:
         with:
           namespace: default
           manifests: |
-            simple_app.yml
+            wordpress.yml
