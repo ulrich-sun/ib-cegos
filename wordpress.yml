@@ -1,0 +1,197 @@
+apiVersion: v1 
+kind: Secret 
+metadata:
+    name: wp-secret
+data:
+  mysql_root_password: cGFzc3dvcmQ=
+  mysql_password: ZWF6eQ==
+type: Opaque
+
+--- 
+apiVersion: v1 
+kind: ConfigMap 
+metadata:
+    name: wp-configmap
+data: 
+    mysql_user: eazy 
+    mysql_database: eazytraining 
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+    name: pv-mysql
+    labels:
+        type: local
+spec:
+    storageClassName: manual
+    capacity:
+        storage: 1Gi
+    accessModes:
+        - ReadWriteOnce
+    hostPath:
+        path: "/data-pv"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+    name: pvc-mysql 
+spec:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: 500Mi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+    name: pv-wordpress
+    labels:
+        type: local
+spec:
+    storageClassName: manual
+    capacity:
+        storage: 1Gi
+    accessModes:
+        - ReadWriteOnce
+    hostPath:
+        path: "/data-pv"
+
+--- 
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+    name: pvc-wordpress
+spec:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: 500Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wp-mysql
+  labels:
+    app: mysql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - image: mysql
+        name: mysql
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: wp-secret
+              key: mysql_root_password
+        - name: MYSQL_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: wp-configmap
+              key: mysql_database
+        - name: MYSQL_USER
+          valueFrom:
+            configMapKeyRef:
+              name: wp-configmap
+              key: mysql_user
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: wp-secret
+              key: mysql_password
+        ports:
+        - containerPort: 3306
+          name: mysql
+        volumeMounts:
+        - name: mysql-storage
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: mysql-storage
+        hostPath:
+          path: /data/mysql
+--- 
+apiVersion: v1 
+kind: Service 
+metadata:
+    labels:
+        app: mysql 
+    name: mysql-service
+spec:
+    ports:
+    - name: mysql 
+      port: 3306
+      protocol: TCP 
+      targetPort: 3306
+    selector:
+        app: mysql 
+    type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wordpress
+  labels:
+    app: wordpress
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wordpress
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: wordpress
+    spec:
+      containers:
+      - image: wordpress
+        name: wordpress
+        env:
+        - name: WORDPRESS_DB_HOST
+          value: mysql-service
+        - name: WORDPRESS_DB_USER
+          value: eazy
+        - name: WORDPRESS_DB_PASSWORD
+          value: eazy
+        - name: WORDPRESS_DB_NAME
+          value: eazytraining
+        ports:
+        - containerPort: 80
+          name: wordpress
+        volumeMounts:
+        - name: wordpress-storage
+          mountPath: /var/www/html
+      volumes:
+      - name: wordpress-storage
+        hostPath:
+          path: /data/wordpress
+--- 
+apiVersion: v1 
+kind: Service 
+metadata:
+    labels:
+        app: wordpress 
+    name: wordpress-service
+spec:
+    ports:
+    - name: wordpress 
+      port: 80
+      protocol: TCP 
+      targetPort: 80
+      nodePort: 30012
+    selector:
+        app: wordpress 
+    type: NodePort
